@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+alembic
+psycopg2-binary
+pgvector
+redis
+celery
+weasyprint
+pytesseract
+anthropic
+python-dotenv
+httpx
+pgvector
