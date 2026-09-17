@@ -80,7 +80,10 @@ def run_agent_turn(phone_number: str, user_message: str, history: list[dict] | N
                 try:
                     args = json.loads(tool_call.function.arguments)
                 except (json.JSONDecodeError, TypeError):
-                    args = {"phone_number": phone_number, "reason": "unparseable escalation call"}
+                    args = {}
+                # Always use the REAL sender number from the webhook, never
+                # whatever the LLM supplied — see phone_number override note below.
+                args["phone_number"] = phone_number
                 TOOL_FUNCTIONS["escalate_to_human"](**args)
                 # Stop entirely — do not let the LLM produce further text this turn.
                 return ESCALATION_MESSAGE, messages
@@ -91,6 +94,15 @@ def run_agent_turn(phone_number: str, user_message: str, history: list[dict] | N
             except (json.JSONDecodeError, TypeError):
                 result = {"error": "Malformed tool arguments, could not parse."}
             else:
+                # SECURITY/CORRECTNESS: never trust an LLM-supplied phone_number.
+                # The real customer identity is already known from the webhook
+                # (this function's own `phone_number` argument) — override
+                # whatever the model tried to pass, so a customer typing their
+                # number differently ("03187574595" vs "923187574595") can
+                # never create a mismatched or duplicate user/session record.
+                if "phone_number" in args:
+                    args["phone_number"] = phone_number
+
                 func = TOOL_FUNCTIONS.get(tool_name)
                 if func is None:
                     result = {"error": f"Unknown tool '{tool_name}'."}

@@ -7,8 +7,10 @@ from pydantic import BaseModel
 
 from app.agent.loop import run_agent_turn
 from app.agent.state import load_history, save_history
+from app.webhook.router import router as whatsapp_router
 
 app = FastAPI(title="WhatsApp Travel Agent")
+app.include_router(whatsapp_router)
 
 
 class ChatRequest(BaseModel):
@@ -27,6 +29,7 @@ def health():
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
+    """Kept for direct testing via /docs — the real path is /webhook/whatsapp."""
     history = load_history(req.phone_number)
     reply, updated_history = run_agent_turn(req.phone_number, req.message, history)
     save_history(req.phone_number, updated_history)

@@ -67,3 +67,51 @@ CONFIRM_BOOKING_INTENT_SCHEMA = {
         "additionalProperties": False,
     },
 }
+
+
+def cancel_booking(booking_id: str) -> dict:
+    """
+    Cancels a draft or pending_payment booking the customer no longer wants
+    (e.g. they say "start over", "cancel that", "never mind"). Only cancels
+    bookings not yet confirmed — a confirmed booking needs human handling.
+    """
+    db = SessionLocal()
+    try:
+        booking = db.query(Booking).filter(Booking.id == booking_id).first()
+        if booking is None:
+            return {"error": "Booking not found."}
+
+        if booking.status not in ("draft", "pending_payment"):
+            return {"error": f"Cannot cancel a booking in status '{booking.status}' — needs human handling."}
+
+        booking.status = "cancelled"
+        db.commit()
+        return {"booking_id": str(booking.id), "status": "cancelled"}
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+    finally:
+        db.close()
+
+
+CANCEL_BOOKING_SCHEMA = {
+    "name": "cancel_booking",
+    "description": (
+        "Cancel an existing draft or pending_payment booking, e.g. when the "
+        "customer says 'start over', 'cancel that', 'never mind', or wants "
+        "to change tours after already creating a draft. Call this BEFORE "
+        "creating a new draft if an old one exists — never just say you've "
+        "cleared it without calling this tool."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "booking_id": {
+                "type": "string",
+                "description": "UUID of the booking to cancel.",
+            },
+        },
+        "required": ["booking_id"],
+        "additionalProperties": False,
+    },
+}
